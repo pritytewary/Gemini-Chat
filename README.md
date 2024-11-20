@@ -34,14 +34,14 @@ Before you begin, ensure you have:
 
 1. Clone the repository:
 
-git clone [your-repo-url]
+git clone [repo-url]
 cd gemini-chat
 
 2. Install dependencies:
 
 npm install
 
-# or
+or
 
 yarn install
 
@@ -54,7 +54,7 @@ GOOGLE_GEMINI_API_KEY=your_api_key_here
 
 npm run dev
 
-# or
+or
 
 yarn dev
 
