@@ -19,20 +19,16 @@ export default function GeminiChat() {
     }
   }, []);
 
-  // Save conversation history whenever messages change
   useEffect(() => {
     localStorage.setItem("chatHistory", JSON.stringify(messages));
 
-    // Scroll to bottom when messages update
     scrollToBottom();
   }, [messages]);
 
-  // Scroll to bottom of messages
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Copy message to clipboard
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text).then(() => {
       alert("Message copied to clipboard!");
@@ -114,7 +110,6 @@ export default function GeminiChat() {
           )}
         </div>
 
-        {/* Conversation History Display */}
         <div className="space-y-4 mb-6 max-h-[50vh] overflow-y-auto">
           {messages.map((message) => (
             <div
