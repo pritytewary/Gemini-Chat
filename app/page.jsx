@@ -20,7 +20,6 @@ export default function GeminiChat() {
 
   useEffect(() => {
     localStorage.setItem("chatHistory", JSON.stringify(messages));
-
     scrollToBottom();
   }, [messages]);
 
