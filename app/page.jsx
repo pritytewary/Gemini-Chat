@@ -11,7 +11,6 @@ export default function GeminiChat() {
   const [error, setError] = useState("");
   const messagesEndRef = useRef(null);
 
-  // Load conversation history from localStorage on component mount
   useEffect(() => {
     const savedMessages = localStorage.getItem("chatHistory");
     if (savedMessages) {
