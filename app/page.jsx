@@ -1,23 +1,59 @@
 "use client";
 
-import { useState } from "react";
-import { FiSend, FiMessageSquare } from "react-icons/fi";
+import { useState, useEffect, useRef } from "react";
+import { FiSend, FiMessageSquare, FiTrash2, FiClipboard } from "react-icons/fi";
 import { AiOutlineLoading3Quarters } from "react-icons/ai";
-import { RiRobot2Line } from "react-icons/ri";
 
 export default function GeminiChat() {
   const [prompt, setPrompt] = useState("");
-  const [response, setResponse] = useState("");
+  const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const messagesEndRef = useRef(null);
+
+  // Load conversation history from localStorage on component mount
+  useEffect(() => {
+    const savedMessages = localStorage.getItem("chatHistory");
+    if (savedMessages) {
+      setMessages(JSON.parse(savedMessages));
+    }
+  }, []);
+
+  // Save conversation history whenever messages change
+  useEffect(() => {
+    localStorage.setItem("chatHistory", JSON.stringify(messages));
+
+    // Scroll to bottom when messages update
+    scrollToBottom();
+  }, [messages]);
+
+  // Scroll to bottom of messages
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // Copy message to clipboard
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text).then(() => {
+      alert("Message copied to clipboard!");
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!prompt.trim()) return;
+
+    const userMessage = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      content: prompt,
+      timestamp: Date.now(),
+    };
+
+    setMessages((prevMessages) => [...prevMessages, userMessage]);
+    setPrompt("");
     setIsLoading(true);
     setError("");
-
-    const currentPrompt = prompt;
-    setPrompt("");
 
     try {
       const res = await fetch("/api/gemini", {
@@ -25,7 +61,13 @@ export default function GeminiChat() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ prompt: currentPrompt }),
+        body: JSON.stringify({
+          prompt,
+          context: messages.slice(-5).map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
+        }),
       });
 
       if (!res.ok) {
@@ -33,7 +75,14 @@ export default function GeminiChat() {
       }
 
       const data = await res.json();
-      setResponse(data.generated_text || "No response from the API");
+      const assistantMessage = {
+        id: `assistant-${Date.now()}`,
+        role: "assistant",
+        content: data.generated_text || "No response from the API",
+        timestamp: Date.now(),
+      };
+
+      setMessages((prevMessages) => [...prevMessages, assistantMessage]);
     } catch (error) {
       console.error("Error fetching response:", error);
       setError("Failed to get response from Gemini. Please try again.");
@@ -42,12 +91,53 @@ export default function GeminiChat() {
     }
   };
 
+  const clearConversation = () => {
+    setMessages([]);
+    localStorage.removeItem("chatHistory");
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6 lg:p-8">
       <div className="max-w-3xl mx-auto">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6 text-center">
-          Gemini Chat
-        </h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+            Gemini Chat
+          </h1>
+          {messages.length > 0 && (
+            <button
+              onClick={clearConversation}
+              className="text-red-500 hover:bg-red-50 p-2 rounded-full transition"
+              title="Clear Conversation"
+            >
+              <FiTrash2 className="text-lg" />
+            </button>
+          )}
+        </div>
+
+        {/* Conversation History Display */}
+        <div className="space-y-4 mb-6 max-h-[50vh] overflow-y-auto">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`p-3 rounded-lg max-w-[85%] relative group ${
+                message.role === "user"
+                  ? "bg-blue-100 ml-auto text-right"
+                  : "bg-gray-100 mr-auto text-left"
+              }`}
+            >
+              {message.content}
+              {message.role === "assistant" && (
+                <button
+                  onClick={() => copyToClipboard(message.content)}
+                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-gray-500 hover:text-gray-800"
+                >
+                  <FiClipboard className="text-sm" />
+                </button>
+              )}
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="relative">
@@ -69,7 +159,7 @@ export default function GeminiChat() {
             {isLoading ? (
               <>
                 <AiOutlineLoading3Quarters className="animate-spin text-lg md:text-xl" />
-                <span>Processing...</span>
+                <span>Sending...</span>
               </>
             ) : (
               <>
@@ -80,24 +170,7 @@ export default function GeminiChat() {
           </button>
         </form>
 
-        {error && (
-          <div className="mt-4 md:mt-6 p-3 md:p-4 bg-red-50 text-red-600 text-sm md:text-base rounded-lg md:rounded-xl border border-red-100 flex items-center gap-2">
-            <div className="w-1 h-full bg-red-500 rounded-full" />
-            {error}
-          </div>
-        )}
-
-        {response && !error && (
-          <div className="mt-4 md:mt-6 space-y-2">
-            <h3 className="font-semibold text-gray-800 flex items-center gap-2 text-sm md:text-base">
-              <RiRobot2Line className="text-lg md:text-xl text-blue-600" />
-              Response:
-            </h3>
-            <div className="p-4 md:p-5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg md:rounded-xl border border-blue-100 whitespace-pre-wrap shadow-sm text-sm md:text-base">
-              {response}
-            </div>
-          </div>
-        )}
+        {error && <div className="mt-4 text-red-500 text-center">{error}</div>}
       </div>
     </div>
   );
